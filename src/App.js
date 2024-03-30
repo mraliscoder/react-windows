@@ -10,7 +10,7 @@ function App() {
     {
       id: Date.now(),
       title: "Test Window",
-      content: <div>хуй</div>
+      content: <div>test</div>
     }
   ]);
 
