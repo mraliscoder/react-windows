@@ -1,24 +1,41 @@
-import logo from './logo.svg';
-import './App.css';
+import {GlobalStyles, MainContainer} from "./styles";
+
+import wallpaper from "./assets/windows_wallpaper.jpg";
+import Taskbar from "./taskbar/Taskbar";
+import Window from "./windows/Window";
+import {useEffect, useState} from "react";
 
 function App() {
+  const [ windows, setWindows ] = useState([
+    {
+      id: Date.now(),
+      title: "Test Window",
+      content: <div>хуй</div>
+    }
+  ]);
+
+  useEffect(() => {
+    window.openWindow = (title, content) => {
+      const w = windows;
+      w.push({
+        id: Date.now(),
+        title,
+        content
+      });
+      setWindows(w);
+    };
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <>
+      <GlobalStyles />
+      <MainContainer background={wallpaper}>
+        {windows.map(w => (
+          <Window key={w.id} title={w.title} content={w.content} />
+        ))}
+        <Taskbar />
+      </MainContainer>
+    </>
   );
 }
 
