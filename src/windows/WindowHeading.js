@@ -1,53 +1,107 @@
 import styled, {css} from "styled-components";
 
-import icon from "../assets/windows_icon.png";
-
 const Header = styled.div`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px;
+    padding: 4px 8px;
     user-select: none;
+    background: ${props => props.dragging ? '#0078d7' : '#f0f0f0'};
+    color: ${props => props.dragging ? 'white' : 'black'};
+    border-bottom: 1px solid #ddd;
     
     ${props => props.dragging && css`
         cursor: grabbing;
     `}
 `;
+
 const Title = styled.div`
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-size: 12px;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
 `;
+
 const Icon = styled.img`
     width: 16px;
     height: 16px;
+    border-radius: 2px;
 `;
-const CloseButton = styled.button`
-    width: 16px;
-    height: 16px;
+
+const WindowControls = styled.div`
     display: flex;
-    flex-direction: column;
+    gap: 1px;
+`;
+
+const ControlButton = styled.button`
+    width: 28px;
+    height: 24px;
+    display: flex;
     align-items: center;
     justify-content: center;
     background-color: transparent;
-    border: 0;
+    border: none;
+    cursor: pointer;
+    color: ${props => props.dragging ? 'white' : '#333'};
+    
+    &:hover {
+        background: ${props => props.close ? '#e81123' : (props.dragging ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')};
+        color: ${props => props.close ? 'white' : (props.dragging ? 'white' : '#333')};
+    }
 `;
 
-export default function WindowHeading({ title, dragging }) {
+export default function WindowHeading({ 
+  title, 
+  dragging, 
+  icon, 
+  onClose, 
+  onMinimize, 
+  onMaximize,
+  isMaximized 
+}) {
   return(
     <Header className={`heading`} dragging={dragging}>
       <Title>
-        <Icon alt={title} src={icon} />
+        {icon && <Icon alt={title} src={icon} />}
         {title}
       </Title>
-      <CloseButton>
-        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 9 9" fill="none">
-          <path
-            d="M0.099665 0.242656L0.164753 0.164753C0.360015 -0.0305096 0.663117 -0.0522056 0.882344 0.099665L0.960247 0.164753L4.5 3.70463L8.03975 0.164753C8.25942 -0.0549174 8.61558 -0.0549174 8.83525 0.164753C9.05492 0.384422 9.05492 0.740578 8.83525 0.960247L5.29537 4.5L8.83525 8.03975C9.03051 8.23501 9.05221 8.53812 8.90033 8.75734L8.83525 8.83525C8.63999 9.03051 8.33688 9.05221 8.11766 8.90033L8.03975 8.83525L4.5 5.29537L0.960247 8.83525C0.740578 9.05492 0.384422 9.05492 0.164753 8.83525C-0.0549174 8.61558 -0.0549174 8.25942 0.164753 8.03975L3.70463 4.5L0.164753 0.960247C-0.0305096 0.764985 -0.0522056 0.461883 0.099665 0.242656Z"
-            fill="#212121"/>
-        </svg>
-      </CloseButton>
+      <WindowControls>
+        <ControlButton 
+          dragging={dragging} 
+          onClick={onMinimize}
+          title="Свернуть"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <rect x="0" y="5" width="12" height="1"/>
+          </svg>
+        </ControlButton>
+        <ControlButton 
+          dragging={dragging} 
+          onClick={onMaximize}
+          title={isMaximized ? "Восстановить" : "Развернуть"}
+        >
+          {isMaximized ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+              <path d="M3,1 L9,1 L9,2 L4,2 L4,7 L3,7 L3,1 Z M1,3 L7,3 L7,8 L2,8 L2,4 L1,4 L1,3 Z M2,3 L2,2 L8,2 L8,8 L7,8 L7,9 L9,9 L9,3 L2,3 Z"/>
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+              <rect x="1" y="1" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1"/>
+            </svg>
+          )}
+        </ControlButton>
+        <ControlButton 
+          dragging={dragging} 
+          close 
+          onClick={onClose}
+          title="Закрыть"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M1,1 L11,11 M11,1 L1,11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </ControlButton>
+      </WindowControls>
     </Header>
   );
 }
