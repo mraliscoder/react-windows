@@ -1,4 +1,3 @@
-// App.js
 import {GlobalStyles, MainContainer} from "./styles";
 import wallpaper from "./assets/windows_wallpaper.jpg";
 import Taskbar from "./taskbar/Taskbar";
