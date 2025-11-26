@@ -1,50 +1,67 @@
 import styled from "styled-components";
 import { useState } from "react";
+import VolumePopup from "./VolumePopup";
 
 const VolumeContainer = styled.div`
   display: flex;
   align-items: center;
-  margin: 0 8px;
+  margin: 0 5px;
   color: white;
-  gap: 4px;
+  position: relative;
 `;
 
-const VolumeSlider = styled.input`
-  width: 80px;
-  margin-left: 8px;
+const VolumeButton = styled.button`
+  background: none;
+  border: none;
+  color: white;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
 `;
 
 export default function VolumeIndicator() {
   const [volume, setVolume] = useState(70);
-  const [muted, setMuted] = useState(false);
-  
+  const [showPopup, setShowPopup] = useState(false);
+  // УДАЛЕНО: неиспользуемая переменная muted
+  // const [muted, setMuted] = useState(false);
+
+  const getVolumeIcon = () => {
+    // Упростим логику, так как muted больше не используется
+    if (volume === 0) return 'fas fa-volume-mute';
+    if (volume < 30) return 'fas fa-volume-down';
+    if (volume < 70) return 'fas fa-volume';
+    return 'fas fa-volume-up';
+  };
+
+  // УДАЛЕНО: неиспользуемая функция toggleMute
+  // const toggleMute = () => {
+  //   setMuted(!muted);
+  // };
+
+  const handleVolumeClick = () => {
+    setShowPopup(!showPopup);
+  };
+
   return (
     <VolumeContainer>
-      <div 
-        style={{cursor: 'pointer'}}
-        onClick={() => setMuted(!muted)}
-      >
-        {muted ? (
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="white">
-            <path d="M11,3 L11,15 L6,12 L3,12 L3,6 L6,6 L11,3 Z M12,6 L15,3 L15,15 L12,12 L12,6 Z"/>
-            <line x1="1" y1="17" x2="17" y2="1" stroke="white" strokeWidth="2"/>
-          </svg>
-        ) : (
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="white">
-            <path d="M11,3 L11,15 L6,12 L3,12 L3,6 L6,6 L11,3 Z M12,6 L15,3 L15,15 L12,12 L12,6 Z"/>
-          </svg>
-        )}
-      </div>
-      <VolumeSlider 
-        type="range" 
-        min="0" 
-        max="100" 
-        value={muted ? 0 : volume}
-        onChange={(e) => {
-          setVolume(e.target.value);
-          if (muted && e.target.value > 0) setMuted(false);
-        }}
-      />
+      <VolumeButton onClick={handleVolumeClick}>
+        <i className={getVolumeIcon()} style={{fontSize: '16px'}}></i>
+      </VolumeButton>
+      
+      {showPopup && (
+        <VolumePopup
+          volume={volume}
+          onVolumeChange={setVolume}
+          onClose={() => setShowPopup(false)}
+        />
+      )}
     </VolumeContainer>
   );
 }

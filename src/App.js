@@ -5,11 +5,13 @@ import Window from "./windows/Window";
 import Desktop from "./desktop/Desktop";
 import {useEffect, useState, useCallback} from "react";
 import { FileSystemProvider, useFileSystem } from "./contexts/FileSystemContext";
+import BootScreen from "./components/BootScreen";
 
 function AppContent() {
   const [windows, setWindows] = useState([]);
   const [focusedWindow, setFocusedWindow] = useState(null);
   const { initialized } = useFileSystem();
+  const [booting, setBooting] = useState(true);
 
   const openWindow = useCallback((title, content, icon = null, props = {}) => {
     const newWindow = {
@@ -66,32 +68,20 @@ function AppContent() {
     };
   }, [openWindow, closeWindow, minimizeWindow]);
 
-  if (!initialized) {
-    return (
-      <div style={{
-        width: '100vw', 
-        height: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: '#0078d7',
-        color: 'white',
-        fontSize: '18px'
-      }}>
-        <div style={{textAlign: 'center'}}>
-          <i className="fab fa-windows" style={{fontSize: '48px', marginBottom: '16px'}}></i>
-          <div>NEWindows</div>
-          <div style={{fontSize: '14px', marginTop: '8px'}}>Загрузка файловой системы...</div>
-        </div>
-      </div>
-    );
+  const handleBootComplete = () => {
+    setBooting(false);
+  };
+
+  if (booting) {
+    return <BootScreen onBootComplete={handleBootComplete} />;
   }
 
+  // Если файловая система еще не готова, показываем только рабочий стол без окон
   return (
     <>
       <GlobalStyles />
       <MainContainer background={wallpaper}>
-        <Desktop onOpenWindow={openWindow} />
+        {initialized && <Desktop onOpenWindow={openWindow} />}
         {windows.map(w => (
           <Window 
             key={w.id} 

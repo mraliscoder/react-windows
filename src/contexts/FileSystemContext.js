@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-
-// Правильный импорт BrowserFS
 import * as BrowserFS from 'browserfs';
 
 const FileSystemContext = createContext();
@@ -19,85 +17,85 @@ export const FileSystemProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeFS = async () => {
-      return new Promise((resolve) => {
-        // Правильная конфигурация BrowserFS
+      return new Promise((resolve, reject) => {
         BrowserFS.configure({
           fs: "IndexedDB",
-          options: {}
-        }, (err) => {
+          options: {
+            storeName: "newindows_fs"
+          }
+        }, async (err) => {
           if (err) {
             console.error('Error initializing filesystem', err);
+            reject(err);
             return;
           }
           
-          // Получаем файловую систему
-          const fs = BrowserFS.BFSRequire('fs');
-          setFs(fs);
-          
-          // Создаем стандартную структуру папок
-          const structure = [
-            'NEWindows/System64',
-            'Users/User/Desktop',
-            'Users/User/Documents',
-            'Users/User/Downloads',
-            'Users/User/Pictures',
-            'Program Files'
-          ];
+          try {
+            const fs = BrowserFS.BFSRequire('fs');
+            setFs(fs);
+            
+            // Создаем структуру папок последовательно
+            await createDirectoryRecursive(fs, 'NEWindows/System64');
+            await createDirectoryRecursive(fs, 'Users/User/Desktop');
+            await createDirectoryRecursive(fs, 'Users/User/Documents');
+            await createDirectoryRecursive(fs, 'Users/User/Downloads');
+            await createDirectoryRecursive(fs, 'Users/User/Pictures');
+            await createDirectoryRecursive(fs, 'Program Files');
 
-          let createdCount = 0;
-          structure.forEach(path => {
-            fs.mkdir(path, { recursive: true }, (err) => {
-              if (err && err.code !== 'EEXIST') {
-                console.error(`Error creating directory ${path}`, err);
-              }
-              createdCount++;
-              
-              // Когда все папки созданы, создаем тестовые файлы
-              if (createdCount === structure.length) {
-                createSampleFiles();
-              }
-            });
-          });
+            // Создаем файлы на рабочем столе
+            await writeFileSafe(fs, 'Users/User/Desktop/Readme.txt', 'Добро пожаловать в NEWindows!');
+            await writeFileSafe(fs, 'Users/User/Desktop/Документ.txt', 'Это тестовый документ.');
+            await writeFileSafe(fs, 'Users/User/Desktop/GitHub проекта.lnk', 'https://github.com/mraliscoder/react-windows');
 
-          const createSampleFiles = () => {
-            // Создаем несколько тестовых файлов на рабочем столе
-            const desktopFiles = [
-              { name: 'Readme.txt', content: 'Добро пожаловать в NEWindows!' },
-              { name: 'Документ.txt', content: 'Это тестовый документ.' }
-            ];
-
-            let filesCreated = 0;
-            desktopFiles.forEach(file => {
-              fs.writeFile(`/Users/User/Desktop/${file.name}`, file.content, (err) => {
-                if (err && err.code !== 'EEXIST') {
-                  console.error(`Error creating file ${file.name}`, err);
-                }
-                filesCreated++;
-                
-                if (filesCreated === desktopFiles.length) {
-                  setInitialized(true);
-                  resolve();
-                }
-              });
-            });
-
-            // Если нет файлов для создания, сразу разрешаем
-            if (desktopFiles.length === 0) {
-              setInitialized(true);
-              resolve();
-            }
-          };
-
-          // Если нет папок для создания, сразу создаем файлы
-          if (structure.length === 0) {
-            createSampleFiles();
+            setInitialized(true);
+            resolve();
+          } catch (error) {
+            console.error('Error setting up filesystem structure', error);
+            reject(error);
           }
         });
       });
     };
 
-    initializeFS();
+    const createDirectoryRecursive = (fs, path) => {
+      return new Promise((resolve, reject) => {
+        fs.mkdir(path, { recursive: true }, (err) => {
+          if (err && err.code !== 'EEXIST') {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+    };
+
+    const writeFileSafe = (fs, path, content) => {
+      return new Promise((resolve, reject) => {
+        fs.writeFile(path, content, (err) => {
+          if (err && err.code !== 'EEXIST') {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+    };
+
+    initializeFS().catch(console.error);
   }, []);
+
+  // Убрали неиспользуемую функцию isDirectory
+
+  // Функция для получения информации о файле/папке
+  const getStats = (path) => {
+    return new Promise((resolve, reject) => {
+      if (!fs) return reject(new Error('FS not initialized'));
+      fs.stat(path, (err, stats) => {
+        if (err) return reject(err);
+        resolve(stats);
+      });
+    });
+  };
 
   const value = {
     fs,
@@ -105,9 +103,30 @@ export const FileSystemProvider = ({ children }) => {
     readDirectory: (path) => {
       return new Promise((resolve, reject) => {
         if (!fs) return reject(new Error('FS not initialized'));
-        fs.readdir(path, (err, files) => {
+        fs.readdir(path, async (err, files) => {
           if (err) return reject(err);
-          resolve(files || []);
+          
+          // Получаем дополнительную информацию о каждом файле
+          const filesWithInfo = await Promise.all(
+            (files || []).map(async (filename) => {
+              const fullPath = path === '/' ? `/${filename}` : `${path}/${filename}`;
+              try {
+                const stats = await getStats(fullPath);
+                return {
+                  name: filename,
+                  isDirectory: stats.isDirectory(),
+                  path: fullPath
+                };
+              } catch (error) {
+                return {
+                  name: filename,
+                  isDirectory: false,
+                  path: fullPath
+                };
+              }
+            })
+          );
+          resolve(filesWithInfo);
         });
       });
     },
@@ -132,10 +151,22 @@ export const FileSystemProvider = ({ children }) => {
     deleteFile: (path) => {
       return new Promise((resolve, reject) => {
         if (!fs) return reject(new Error('FS not initialized'));
-        fs.unlink(path, (err) => {
-          if (err) return reject(err);
-          resolve();
-        });
+        // Проверяем, является ли путь директорией
+        getStats(path).then(stats => {
+          if (stats.isDirectory()) {
+            // Удаляем директорию рекурсивно
+            fs.rmdir(path, { recursive: true }, (err) => {
+              if (err) return reject(err);
+              resolve();
+            });
+          } else {
+            // Удаляем файл
+            fs.unlink(path, (err) => {
+              if (err) return reject(err);
+              resolve();
+            });
+          }
+        }).catch(reject);
       });
     },
     renameFile: (oldPath, newPath) => {
@@ -163,7 +194,8 @@ export const FileSystemProvider = ({ children }) => {
           resolve(exists);
         });
       });
-    }
+    },
+    getStats
   };
 
   return (

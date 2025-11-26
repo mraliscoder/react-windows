@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { useState } from "react"; // Добавили импорт useState
 
 const StartMenuContainer = styled.div`
   position: fixed;
@@ -85,24 +86,95 @@ const Footer = styled.div`
   align-items: center;
 `;
 
+const PowerButtons = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
 const PowerButton = styled.button`
   background: none;
   border: none;
-  padding: 8px 16px;
+  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
+  color: #333;
   
   &:hover {
     background: rgba(0, 0, 0, 0.1);
   }
+  
+  ${props => props.danger && `
+    color: #d13438;
+    
+    &:hover {
+      background: rgba(209, 52, 56, 0.1);
+    }
+  `}
+`;
+
+const ShutdownMessage = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: center;
 `;
 
 export default function StartMenu({ visible, apps, onAppClick, onClose }) {
+  const [showShutdownMessage, setShowShutdownMessage] = useState(false);
+
+  const handleLogout = () => {
+    // Возврат на экран входа
+    window.location.reload();
+  };
+
+  const handleRestart = () => {
+    // Перезагрузка страницы
+    window.location.reload();
+  };
+
+  const handleShutdown = () => {
+    setShowShutdownMessage(true);
+    // Пытаемся закрыть вкладку
+    setTimeout(() => {
+      if (!window.close()) {
+        // Если не удалось закрыть вкладку, показываем сообщение
+        setTimeout(() => {
+          setShowShutdownMessage(false);
+        }, 3000);
+      }
+    }, 2000);
+  };
+
   if (!visible) return null;
+
+  if (showShutdownMessage) {
+    return (
+      <ShutdownMessage>
+        <i className="fas fa-power-off" style={{fontSize: '64px', marginBottom: '20px', color: '#0078d7'}}></i>
+        <h2>Завершение работы</h2>
+        <p>NEWindows завершает работу...</p>
+        {!window.close() && (
+          <p style={{marginTop: '20px', color: '#ccc'}}>
+            Теперь питание компьютера можно выключить
+          </p>
+        )}
+      </ShutdownMessage>
+    );
+  }
 
   return (
     <>
@@ -128,8 +200,10 @@ export default function StartMenu({ visible, apps, onAppClick, onClose }) {
             <AppItem key={app.id} onClick={() => onAppClick(app)}>
               {app.icon.startsWith('http') ? (
                 <AppIconImage src={app.icon} alt={app.name} />
-              ) : (
+              ) : app.icon.startsWith('fas') || app.icon.startsWith('fab') || app.icon.startsWith('far') ? (
                 <AppIconFontAwesome className={app.icon} />
+              ) : (
+                <AppIconImage src={app.icon} alt={app.name} />
               )}
               <AppName>{app.name}</AppName>
             </AppItem>
@@ -140,10 +214,20 @@ export default function StartMenu({ visible, apps, onAppClick, onClose }) {
           <div style={{fontSize: '12px', color: '#666'}}>
             NEWindows v1.0
           </div>
-          <PowerButton>
-            <i className="fas fa-power-off"></i>
-            Выключение
-          </PowerButton>
+          <PowerButtons>
+            <PowerButton onClick={handleLogout}>
+              <i className="fas fa-sign-out-alt"></i>
+              Выход
+            </PowerButton>
+            <PowerButton onClick={handleRestart}>
+              <i className="fas fa-redo"></i>
+              Перезагрузка
+            </PowerButton>
+            <PowerButton danger onClick={handleShutdown}>
+              <i className="fas fa-power-off"></i>
+              Выключение
+            </PowerButton>
+          </PowerButtons>
         </Footer>
       </StartMenuContainer>
     </>

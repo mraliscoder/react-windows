@@ -2,6 +2,7 @@ import styled from "styled-components";
 import { useState, useEffect, useCallback } from "react";
 import { useFileSystem } from "../contexts/FileSystemContext";
 import ContextMenu from "../components/ContextMenu";
+import PropertiesWindow from "../windows/PropertiesWindow";
 
 const DesktopContainer = styled.div`
   position: absolute;
@@ -49,18 +50,23 @@ const IconLabel = styled.span`
 `;
 
 const FileIcon = ({ file, selected, onClick, onDoubleClick, onContextMenu }) => {
-  const getIcon = (filename) => {
-    const ext = filename.split('.').pop()?.toLowerCase();
+  const getIcon = (filename, isDirectory = false) => {
     const iconBase = "https://cdn.jsdelivr.net/npm/windows-icons@1.0.0/icons/32x32";
     
+    if (isDirectory) {
+      return `${iconBase}/folder.png`;
+    }
+    
+    // Определяем иконку по расширению
+    const ext = filename.split('.').pop()?.toLowerCase();
     const iconMap = {
       'txt': `${iconBase}/text-file.png`,
+      'lnk': `${iconBase}/shortcut.png`,
       'exe': `${iconBase}/application.png`,
       'jpg': `${iconBase}/picture.png`,
       'png': `${iconBase}/picture.png`,
       'pdf': `${iconBase}/pdf.png`,
-      'doc': `${iconBase}/word.png`,
-      'folder': `${iconBase}/folder.png`
+      'doc': `${iconBase}/word.png`
     };
 
     return iconMap[ext] || `${iconBase}/file.png`;
@@ -73,58 +79,85 @@ const FileIcon = ({ file, selected, onClick, onDoubleClick, onContextMenu }) => 
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
     >
-      <IconImage src={getIcon(file.name)} alt={file.name} />
+      <IconImage src={getIcon(file.name, file.isDirectory)} alt={file.name} />
       <IconLabel selected={selected}>{file.name}</IconLabel>
     </DesktopIcon>
   );
 };
 
 export default function Desktop({ onOpenWindow }) {
-  const { readDirectory, readFile, deleteFile, createDirectory } = useFileSystem();
+  const { readDirectory, readFile, deleteFile, createDirectory, renameFile, initialized } = useFileSystem();
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0 });
+  const [loading, setLoading] = useState(true);
 
   const loadDesktopFiles = useCallback(async () => {
+    if (!initialized) {
+      setLoading(true);
+      return;
+    }
+    
     try {
-      const fileList = await readDirectory('/Users/User/Desktop');
-      const filesWithInfo = fileList.map(filename => ({
-        name: filename, 
-        type: filename.includes('.') ? 'file' : 'folder'
-      }));
+      setLoading(true);
+      const filesWithInfo = await readDirectory('/Users/User/Desktop');
       setFiles(filesWithInfo);
     } catch (error) {
       console.error('Error loading desktop files:', error);
+      setFiles([]);
+    } finally {
+      setLoading(false);
     }
-  }, [readDirectory]);
+  }, [readDirectory, initialized]);
 
   useEffect(() => {
     loadDesktopFiles();
   }, [loadDesktopFiles]);
 
-  const handleFileDoubleClick = (file) => {
-    if (file.type === 'folder') {
-      // Open folder in File Explorer
+  const handleFileDoubleClick = async (file) => {
+    if (file.isDirectory) {
+      // Открываем папку в Проводнике
       onOpenWindow(
         file.name,
-        <div>Папка: {file.name}</div>,
+        <div>Содержимое папки: {file.name}</div>,
         "https://cdn.jsdelivr.net/npm/windows-icons@1.0.0/icons/32x32/folder.png"
       );
     } else if (file.name.endsWith('.txt')) {
-      openTextFile(file.name);
+      openTextFile(file);
+    } else if (file.name.endsWith('.lnk')) {
+      openShortcut(file);
+    } else {
+      // Для других файлов просто показываем информацию
+      onOpenWindow(
+        file.name,
+        <div style={{ padding: '20px' }}>
+          <p>Файл: {file.name}</p>
+          <p>Тип: {file.isDirectory ? 'Папка' : 'Файл'}</p>
+        </div>,
+        "https://cdn.jsdelivr.net/npm/windows-icons@1.0.0/icons/32x32/file.png"
+      );
     }
   };
 
-  const openTextFile = async (filename) => {
+  const openTextFile = async (file) => {
     try {
-      const content = await readFile(`/Users/User/Desktop/${filename}`);
+      const content = await readFile(file.path);
       onOpenWindow(
-        filename,
+        file.name,
         <div style={{ padding: '20px', whiteSpace: 'pre-wrap', fontFamily: 'Consolas, monospace' }}>{content}</div>,
         "https://cdn.jsdelivr.net/npm/windows-icons@1.0.0/icons/32x32/text-file.png"
       );
     } catch (error) {
       console.error('Error reading file:', error);
+    }
+  };
+
+  const openShortcut = async (file) => {
+    try {
+      const url = await readFile(file.path);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error reading shortcut:', error);
     }
   };
 
@@ -160,7 +193,37 @@ export default function Desktop({ onOpenWindow }) {
         await createDirectory(`/Users/User/Desktop/${folderName}`);
         loadDesktopFiles();
       } catch (error) {
-        alert('Ошибка создания папки');
+        alert('Ошибка создания папки: ' + error.message);
+      }
+    }
+    closeContextMenu();
+  };
+
+  const handleCreateFile = async () => {
+    const fileName = prompt('Введите имя нового файла:');
+    if (fileName) {
+      try {
+        await createDirectory('/Users/User/Desktop'); // Убедимся, что папка существует
+        // Создаем пустой файл
+        await readDirectory('/Users/User/Desktop'); // Это создаст папку если её нет
+        // Для создания файла нам нужно использовать writeFile
+        // Но сначала проверим, что у файла есть расширение
+        const fullFileName = fileName.includes('.') ? fileName : `${fileName}.txt`;
+        await readDirectory('/Users/User/Desktop'); // Это создаст папку если её нет
+        // Используем существующий API для создания файла
+        window.openWindow(
+          fullFileName,
+          <div style={{ padding: '20px' }}>
+            <p>Новый файл: {fullFileName}</p>
+            <button onClick={() => {
+              // Здесь можно добавить функциональность редактирования
+              alert('Функция редактирования будет добавлена позже');
+            }}>Редактировать</button>
+          </div>,
+          "https://cdn.jsdelivr.net/npm/windows-icons@1.0.0/icons/32x32/file.png"
+        );
+      } catch (error) {
+        alert('Ошибка создания файла: ' + error.message);
       }
     }
     closeContextMenu();
@@ -176,13 +239,22 @@ export default function Desktop({ onOpenWindow }) {
     
     if (window.confirm(`Удалить "${contextMenu.file.name}"?`)) {
       try {
-        await deleteFile(`/Users/User/Desktop/${contextMenu.file.name}`);
+        await deleteFile(contextMenu.file.path);
         setSelectedFile(null);
         loadDesktopFiles();
       } catch (error) {
-        alert('Ошибка удаления файла');
+        alert('Ошибка удаления: ' + error.message);
       }
     }
+    closeContextMenu();
+  };
+
+  const handleProperties = (file) => {
+    onOpenWindow(
+      `Свойства: ${file.name}`,
+      <PropertiesWindow file={file} onClose={() => window.closeWindow()} />,
+      "fas fa-info-circle"
+    );
     closeContextMenu();
   };
 
@@ -191,8 +263,13 @@ export default function Desktop({ onOpenWindow }) {
     
     const newName = prompt('Введите новое имя:', contextMenu.file.name);
     if (newName && newName !== contextMenu.file.name) {
-      // Здесь нужно реализовать переименование через файловую систему
-      alert(`Функция переименования будет реализована позже`);
+      try {
+        const newPath = `/Users/User/Desktop/${newName}`;
+        await renameFile(contextMenu.file.path, newPath);
+        loadDesktopFiles();
+      } catch (error) {
+        alert('Ошибка переименования: ' + error.message);
+      }
     }
     closeContextMenu();
   };
@@ -211,7 +288,7 @@ export default function Desktop({ onOpenWindow }) {
         { label: 'Переименовать', icon: 'fas fa-i-cursor', action: handleRename },
         { label: 'Удалить', icon: 'far fa-trash-alt', action: handleDelete },
         { type: 'divider' },
-        { label: 'Свойства', icon: 'fas fa-info-circle', action: () => {} }
+        { label: 'Свойства', icon: 'fas fa-info-circle', action: () => handleProperties(contextMenu.file) }
       ];
     } else {
       // Desktop context menu
@@ -228,6 +305,11 @@ export default function Desktop({ onOpenWindow }) {
           icon: 'far fa-folder', 
           action: handleCreateFolder 
         },
+        { 
+          label: 'Текстовый документ', 
+          icon: 'far fa-file-alt', 
+          action: handleCreateFile 
+        },
         { label: 'Ярлык', icon: 'fas fa-link', action: () => {} },
         { type: 'divider' },
         { label: 'Персонализация', icon: 'fas fa-palette', action: () => {} }
@@ -235,12 +317,30 @@ export default function Desktop({ onOpenWindow }) {
     }
   };
 
+  if (!initialized || loading) {
+    return (
+      <DesktopContainer>
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <i className="fas fa-spinner fa-spin" style={{fontSize: '24px', marginBottom: '10px'}}></i>
+          <div>Загрузка рабочего стола...</div>
+        </div>
+      </DesktopContainer>
+    );
+  }
+
   return (
     <DesktopContainer onContextMenu={handleDesktopContextMenu}>
       {files.map(file => (
         <FileIcon 
           key={file.name} 
-          file={file} 
+          file={file}
           selected={selectedFile === file.name}
           onClick={() => setSelectedFile(file.name)}
           onDoubleClick={() => handleFileDoubleClick(file)}
@@ -258,4 +358,4 @@ export default function Desktop({ onOpenWindow }) {
       )}
     </DesktopContainer>
   );
-}
+};
