@@ -1,4 +1,3 @@
-// src/components/ShutdownScreen.js
 import styled, { keyframes } from "styled-components";
 import { useState, useEffect } from "react";
 

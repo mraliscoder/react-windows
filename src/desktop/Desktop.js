@@ -57,7 +57,6 @@ const FileIcon = ({ file, selected, onClick, onDoubleClick, onContextMenu }) => 
       return `${iconBase}/folder.png`;
     }
     
-    // Определяем иконку по расширению
     const ext = filename.split('.').pop()?.toLowerCase();
     const iconMap = {
       'txt': `${iconBase}/text-file.png`,
@@ -114,7 +113,7 @@ export default function Desktop({ onOpenWindow }) {
     loadDesktopFiles();
   }, [loadDesktopFiles]);
 
-  const handleFileDoubleClick = async (file) => {
+  const handleFileDoubleClick = (file) => {
     if (file.isDirectory) {
       // Открываем папку в Проводнике
       onOpenWindow(
@@ -203,20 +202,13 @@ export default function Desktop({ onOpenWindow }) {
     const fileName = prompt('Введите имя нового файла:');
     if (fileName) {
       try {
-        await createDirectory('/Users/User/Desktop'); // Убедимся, что папка существует
-        // Создаем пустой файл
-        await readDirectory('/Users/User/Desktop'); // Это создаст папку если её нет
-        // Для создания файла нам нужно использовать writeFile
-        // Но сначала проверим, что у файла есть расширение
         const fullFileName = fileName.includes('.') ? fileName : `${fileName}.txt`;
-        await readDirectory('/Users/User/Desktop'); // Это создаст папку если её нет
-        // Используем существующий API для создания файла
+        await readDirectory('/Users/User/Desktop');
         window.openWindow(
           fullFileName,
           <div style={{ padding: '20px' }}>
             <p>Новый файл: {fullFileName}</p>
             <button onClick={() => {
-              // Здесь можно добавить функциональность редактирования
               alert('Функция редактирования будет добавлена позже');
             }}>Редактировать</button>
           </div>,
@@ -249,15 +241,6 @@ export default function Desktop({ onOpenWindow }) {
     closeContextMenu();
   };
 
-  const handleProperties = (file) => {
-    onOpenWindow(
-      `Свойства: ${file.name}`,
-      <PropertiesWindow file={file} onClose={() => window.closeWindow()} />,
-      "fas fa-info-circle"
-    );
-    closeContextMenu();
-  };
-
   const handleRename = async () => {
     if (!contextMenu.file) return;
     
@@ -271,6 +254,15 @@ export default function Desktop({ onOpenWindow }) {
         alert('Ошибка переименования: ' + error.message);
       }
     }
+    closeContextMenu();
+  };
+
+  const handleProperties = (file) => {
+    onOpenWindow(
+      `Свойства: ${file.name}`,
+      <PropertiesWindow file={file} onClose={() => window.closeWindow()} />,
+      "fas fa-info-circle"
+    );
     closeContextMenu();
   };
 
@@ -340,7 +332,7 @@ export default function Desktop({ onOpenWindow }) {
       {files.map(file => (
         <FileIcon 
           key={file.name} 
-          file={file}
+          file={file} 
           selected={selectedFile === file.name}
           onClick={() => setSelectedFile(file.name)}
           onDoubleClick={() => handleFileDoubleClick(file)}
@@ -358,4 +350,4 @@ export default function Desktop({ onOpenWindow }) {
       )}
     </DesktopContainer>
   );
-};
+}

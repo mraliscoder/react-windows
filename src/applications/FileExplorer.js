@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import { useState, useEffect, useCallback } from "react";
 import { useFileSystem } from "../contexts/FileSystemContext";
+import PropertiesWindow from "../windows/PropertiesWindow";
 
 const ExplorerContainer = styled.div`
   display: flex;
@@ -160,7 +161,7 @@ const LoadingMessage = styled.div`
 `;
 
 export default function FileExplorer() {
-  const { readDirectory, readFile, deleteFile, createDirectory, renameFile, initialized } = useFileSystem();
+  const { readDirectory, readFile, deleteFile, createDirectory, renameFile, getStats, initialized } = useFileSystem();
   const [currentPath, setCurrentPath] = useState('/Users/User/Desktop');
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -283,6 +284,16 @@ export default function FileExplorer() {
     }
   };
 
+  const handleProperties = () => {
+    if (!selectedFile) return;
+    
+    window.openWindow(
+      `Свойства: ${selectedFile.name}`,
+      <PropertiesWindow file={selectedFile} onClose={() => window.closeWindow()} />,
+      "fas fa-info-circle"
+    );
+  };
+
   const goBack = () => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
@@ -383,6 +394,10 @@ export default function FileExplorer() {
           <Button onClick={handleRename} disabled={!selectedFile}>
             <i className="fas fa-i-cursor"></i>
             Переименовать
+          </Button>
+          <Button onClick={handleProperties} disabled={!selectedFile}>
+            <i className="fas fa-info-circle"></i>
+            Свойства
           </Button>
         </Toolbar>
         
