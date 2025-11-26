@@ -204,13 +204,16 @@ export default function BootScreen({ onBootComplete }) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     setLoginProgress('Загрузка профиля пользователя...');
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     setLoginProgress('Пылесосим кота...');
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setLoginProgress('Черт, кота засосало!');
     
     await new Promise(resolve => setTimeout(resolve, 1000));
     setLoginProgress('Добро пожаловать!');
     
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     setFadingOut(true);
     setTimeout(() => {

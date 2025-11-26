@@ -1,5 +1,6 @@
 import styled from "styled-components";
-import { useState } from "react"; // Добавили импорт useState
+import { useState } from "react";
+import ShutdownScreen from "../components/ShutdownScreen";
 
 const StartMenuContainer = styled.div`
   position: fixed;
@@ -116,65 +117,53 @@ const PowerButton = styled.button`
   `}
 `;
 
-const ShutdownMessage = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #000;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 10001;
-  font-family: 'Segoe UI', sans-serif;
-  text-align: center;
-`;
-
 export default function StartMenu({ visible, apps, onAppClick, onClose }) {
-  const [showShutdownMessage, setShowShutdownMessage] = useState(false);
+  const [shutdownState, setShutdownState] = useState({ 
+    show: false, 
+    type: null 
+  });
 
   const handleLogout = () => {
-    // Возврат на экран входа
-    window.location.reload();
+    setShutdownState({ show: true, type: 'logout' });
   };
 
   const handleRestart = () => {
-    // Перезагрузка страницы
-    window.location.reload();
+    setShutdownState({ show: true, type: 'restart' });
   };
 
   const handleShutdown = () => {
-    setShowShutdownMessage(true);
-    // Пытаемся закрыть вкладку
-    setTimeout(() => {
-      if (!window.close()) {
-        // Если не удалось закрыть вкладку, показываем сообщение
-        setTimeout(() => {
-          setShowShutdownMessage(false);
-        }, 3000);
-      }
-    }, 2000);
+    setShutdownState({ show: true, type: 'shutdown' });
   };
 
-  if (!visible) return null;
+  const handleShutdownComplete = () => {
+    const { type } = shutdownState;
+    
+    switch (type) {
+      case 'logout':
+      case 'restart':
+        window.location.reload();
+        break;
+      case 'shutdown':
+        // Для выключения мы уже показали сообщение в ShutdownScreen
+        // Здесь можно оставить пустое действие или добавить дополнительную логику
+        break;
+      default:
+        break;
+    }
+    
+    setShutdownState({ show: false, type: null });
+  };
 
-  if (showShutdownMessage) {
+  if (shutdownState.show) {
     return (
-      <ShutdownMessage>
-        <i className="fas fa-power-off" style={{fontSize: '64px', marginBottom: '20px', color: '#0078d7'}}></i>
-        <h2>Завершение работы</h2>
-        <p>NEWindows завершает работу...</p>
-        {!window.close() && (
-          <p style={{marginTop: '20px', color: '#ccc'}}>
-            Теперь питание компьютера можно выключить
-          </p>
-        )}
-      </ShutdownMessage>
+      <ShutdownScreen 
+        type={shutdownState.type} 
+        onComplete={handleShutdownComplete}
+      />
     );
   }
+
+  if (!visible) return null;
 
   return (
     <>
